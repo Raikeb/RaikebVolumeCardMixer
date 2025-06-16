@@ -8,10 +8,6 @@
             "args": [
                 "-municode",
                 "-mwindows",
-                "-DUNICODE",
-                "-D_UNICODE",
-                "-D_DEBUG",
-                "-D_CRT_SECURE_NO_WARNINGS",
                 "main.cpp",
                 "-o",
                 "RaikebVolumeCardMixer.exe",
@@ -28,7 +24,14 @@
                 "kind": "build",
                 "isDefault": true
             },
-            "problemMatcher": []
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
         }
     ]
 }
