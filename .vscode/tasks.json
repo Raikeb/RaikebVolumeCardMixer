@@ -8,6 +8,10 @@
             "args": [
                 "-municode",
                 "-mwindows",
+                "-DUNICODE",
+                "-D_UNICODE",
+                "-D_DEBUG",
+                "-D_CRT_SECURE_NO_WARNINGS",
                 "main.cpp",
                 "-o",
                 "RaikebVolumeCardMixer.exe",
@@ -16,7 +20,7 @@
                 "-lshlwapi",
                 "-lole32",
                 "-loleaut32",
-                "-lwinmm", 
+                "-lwinmm",
                 "-luuid",
                 "-lpsapi"
             ],

@@ -1,0 +1,126 @@
+
+
+=== Log started at 2025-06-16 16:16:54 ===
+[16:16:54] Program started
+[16:16:54] COM inicializado com sucesso
+[16:16:54] Carregando configurações...
+[16:16:54] Configurações carregadas
+[16:16:54] Classe da janela principal registrada
+[16:16:54] Classe do card flutuante registrada
+[16:16:54] Criando janela principal...
+[16:16:54] WM_CREATE recebido
+[16:16:54] Janela principal criada com sucesso
+[16:16:54] Mostrando janela principal...
+[16:16:54] Janela principal mostrada
+[16:16:54] Entrando no loop de mensagens...
+[16:16:55] WM_TIMER recebido - verificando sessões de áudio
+[16:16:55] Iniciando verificação de sessões de áudio
+
+
+=== Log started at 2025-06-16 17:14:11 ===
+[17:14:11] Program started
+[17:14:11] COM inicializado com sucesso
+[17:14:11] Carregando configurações...
+[17:14:11] Configurações carregadas
+[17:14:11] Classe da janela principal registrada
+[17:14:11] Classe do card flutuante registrada
+[17:14:11] Criando janela principal...
+[17:14:11] WM_CREATE recebido
+[17:14:11] Janela principal criada com sucesso
+[17:14:11] Mostrando janela principal...
+[17:14:12] Janela principal mostrada
+[17:14:12] Entrando no loop de mensagens...
+[17:14:12] WM_TIMER recebido - verificando sessões de áudio
+[17:14:12] Iniciando verificação de sessões de áudio
+[17:14:13] Verificação de sessões de áudio concluída
+[17:14:13] WM_TIMER recebido - verificando sessões de áudio
+[17:14:13] Iniciando verificação de sessões de áudio
+[17:14:13] Verificação de sessões de áudio concluída
+[17:14:13] WM_TIMER recebido - verificando sessões de áudio
+[17:14:13] Iniciando verificação de sessões de áudio
+[17:14:13] Verificação de sessões de áudio concluída
+[17:14:13] WM_TIMER recebido - verificando sessões de áudio
+[17:14:13] Iniciando verificação de sessões de áudio
+[17:14:13] Verificação de sessões de áudio concluída
+[17:14:14] WM_TIMER recebido - verificando sessões de áudio
+[17:14:14] Iniciando verificação de sessões de áudio
+[17:14:14] Verificação de sessões de áudio concluída
+[17:14:14] WM_TIMER recebido - verificando sessões de áudio
+[17:14:14] Iniciando verificação de sessões de áudio
+[17:14:14] Verificação de sessões de áudio concluída
+[17:14:15] WM_TIMER recebido - verificando sessões de áudio
+[17:17:26] Saindo do loop de mensagens
+[17:17:26] COM desinicializado
+=== Log ended ===
+
+
+=== Log started at 2025-06-16 17:19:47 ===
+[17:19:47] Program started
+[17:19:47] COM inicializado com sucesso
+[17:19:47] Carregando configurações...
+[17:19:47] Configurações carregadas
+[17:19:47] Classe da janela principal registrada
+[17:19:47] Classe do card flutuante registrada
+[17:19:47] Criando janela principal...
+[17:19:47] WM_CREATE recebido
+[17:19:47] Janela principal criada com sucesso
+[17:19:47] Mostrando janela principal...
+[17:19:47] Janela principal mostrada
+[17:19:47] Entrando no loop de mensagens...
+[17:19:47] WM_TIMER recebido - verificando sessões de áudio
+[17:19:47] Iniciando verificação de sessões de áudio
+[17:19:48] Verificação de sessões de áudio concluída
+[17:19:48] WM_TIMER recebido - verificando sessões de áudio
+[17:19:48] Iniciando verificação de sessões de áudio
+[17:19:48] Verificação de sessões de áudio concluída
+[17:19:48] WM_TIMER recebido - verificando sessões de áudio
+[17:19:48] Iniciando verificação de sessões de áudio
+[17:19:49] Verificação de sessões de áudio concluída
+[17:19:49] WM_TIMER recebido - verificando sessões de áudio
+[17:19:49] Iniciando verificação de sessões de áudio
+[17:19:49] Verificação de sessões de áudio concluída
+[17:19:49] WM_TIMER recebido - verificando sessões de áudio
+[17:19:49] Iniciando verificação de sessões de áudio
+[17:19:49] Verificação de sessões de áudio concluída
+[17:19:50] WM_TIMER recebido - verificando sessões de áudio
+[17:19:50] Iniciando verificação de sessões de áudio
+[17:19:50] Verificação de sessões de áudio concluída
+[17:19:50] WM_TIMER recebido - verificando sessões de áudio
+[17:19:50] Iniciando verificação de sessões de áudio
+[17:19:50] Verificação de sessões de áudio concluída
+[17:19:51] WM_TIMER recebido - verificando sessões de áudio
+[17:19:51] Iniciando verificação de sessões de áudio
+[17:19:51] Verificação de sessões de áudio concluída
+[17:19:51] WM_TIMER recebido - verificando sessões de áudio
+[17:19:51] Iniciando verificação de sessões de áudio
+[17:19:51] Verificação de sessões de áudio concluída
+[17:19:52] WM_TIMER recebido - verificando sessões de áudio
+[17:19:52] Iniciando verificação de sessões de áudio
+[17:19:52] Verificação de sessões de áudio concluída
+[17:19:52] WM_TIMER recebido - verificando sessões de áudio
+[17:19:52] Iniciando verificação de sessões de áudio
+[17:19:52] Verificação de sessões de áudio concluída
+[17:19:53] WM_TIMER recebido - verificando sessões de áudio
+[17:19:53] Iniciando verificação de sessões de áudio
+[17:19:53] Verificação de sessões de áudio concluída
+[17:19:53] WM_TIMER recebido - verificando sessões de áudio
+[17:19:53] Iniciando verificação de sessões de áudio
+[17:19:53] Verificação de sessões de áudio concluída
+[17:19:54] WM_TIMER recebido - verificando sessões de áudio
+[17:19:54] Iniciando verificação de sessões de áudio
+[17:19:54] Verificação de sessões de áudio concluída
+[17:19:54] WM_TIMER recebido - verificando sessões de áudio
+[17:19:54] Iniciando verificação de sessões de áudio
+[17:19:54] Verificação de sessões de áudio concluída
+[17:19:55] WM_TIMER recebido - verificando sessões de áudio
+[17:19:55] Iniciando verificação de sessões de áudio
+[17:19:55] Verificação de sessões de áudio concluída
+[17:19:55] WM_TIMER recebido - verificando sessões de áudio
+[17:19:55] Iniciando verificação de sessões de áudio
+[17:19:55] Verificação de sessões de áudio concluída
+[17:19:56] WM_TIMER recebido - verificando sessões de áudio
+[17:19:56] Iniciando verificação de sessões de áudio
+[17:19:56] Verificação de sessões de áudio concluída
+[17:19:56] Saindo do loop de mensagens
+[17:19:56] COM desinicializado
+=== Log ended ===
