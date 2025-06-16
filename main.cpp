@@ -1,4 +1,4 @@
-// VolumeCardMixer - Passo 3: Persistência de configurações e modo Start Windowed
+// VolumeCardMixer - Passo 4: Card flutuante com volume e ícone por processo
 // Autor: Raike
 
 #include <windows.h>
@@ -89,10 +89,26 @@ void PopulateMonitorList(HWND combo) {
     SendMessage(combo, CB_SETCURSEL, config.selectedMonitor, 0);
 }
 
+void ShowFloatingCard(const std::wstring& processName, int volume) {
+    HWND hwndCard = CreateWindowEx(WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
+        L"STATIC", NULL,
+        WS_POPUP | SS_OWNERDRAW,
+        100 + config.selectedMonitor * 50, 100, 200, 60,
+        NULL, NULL, hInst, NULL);
+
+    std::wstring text = processName + L": " + std::to_wstring(volume) + L"%";
+    SetWindowText(hwndCard, text.c_str());
+    ShowWindow(hwndCard, SW_SHOWNOACTIVATE);
+    UpdateWindow(hwndCard);
+    SetTimer(hwndCard, 1, 1500, [](HWND hwnd, UINT, UINT_PTR, DWORD) {
+        ShowWindow(hwnd, SW_HIDE);
+        DestroyWindow(hwnd);
+    });
+}
+
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
     case WM_CREATE:
-        // Tray icon setup
         nid.cbSize = sizeof(NOTIFYICONDATA);
         nid.hWnd = hwnd;
         nid.uID = 1;
@@ -102,7 +118,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         wcscpy_s(nid.szTip, L"Volume Card Mixer");
         Shell_NotifyIcon(NIM_ADD, &nid);
 
-        // Checkboxes
         hCheckStartup = CreateWindow(L"BUTTON", L"Launch on Startup",
             WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX,
             20, 20, 180, 20, hwnd, (HMENU)ID_CHECK_STARTUP, hInst, NULL);
@@ -113,7 +128,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             20, 50, 180, 20, hwnd, (HMENU)ID_CHECK_WINDOWED, hInst, NULL);
         SendMessage(hCheckWindowed, BM_SETCHECK, config.startWindowed ? BST_CHECKED : BST_UNCHECKED, 0);
 
-        // ComboBox para monitores
         CreateWindow(L"STATIC", L"Mostrar card no monitor:",
             WS_VISIBLE | WS_CHILD,
             20, 90, 200, 20, hwnd, NULL, hInst, NULL);
@@ -195,6 +209,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow) {
     if (!hwndMain) return 0;
 
     ShowWindow(hwndMain, config.startWindowed ? SW_HIDE : SW_SHOW);
+
+    // Exemplo de uso do card flutuante
+    ShowFloatingCard(L"chrome.exe", 45);
 
     MSG msg = {};
     while (GetMessage(&msg, NULL, 0, 0)) {
