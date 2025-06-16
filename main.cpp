@@ -1,6 +1,6 @@
-// VolumeCardMixer - Passo 4: Volume de processos e card flutuante v6
+// VolumeCardMixer - Passo 5: Card com ícone do processo aparecendo v7
 // Autor: Raike
-// Bug: Card infinito
+// Bug: Mesmo alterando o monitor aparece apenas na tela principal
 #define WIN32_LEAN_AND_MEAN
 #define _CRT_SECURE_NO_WARNINGS
 
@@ -16,6 +16,7 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <set>
 #include <fstream>
 #include <chrono>
 #include <iomanip>
@@ -39,7 +40,9 @@ const wchar_t CARD_CLASS_NAME[] = L"VolumeCardMixerCardClass";
 
 // Function declarations
 void CheckAudioSessionsForDevice(IMMDevice *pDevice);
-void ProcessAudioSession(IAudioSessionControl2 *pSessionControl2, IAudioSessionControl *pSessionControl);
+void ProcessAudioSession(IAudioSessionControl2 *pSessionControl2,
+                         IAudioSessionControl *pSessionControl,
+                         const std::wstring &deviceId);
 std::wstring GetSessionName(IAudioSessionControl2 *pSessionControl2, DWORD pid, bool isSystemSounds);
 
 // Estruturas
@@ -51,6 +54,7 @@ struct AudioSessionInfo
     bool isSystemSounds;
     HICON icon;
     bool hasChanged;
+    std::wstring deviceId;
 };
 
 struct AppConfig
@@ -67,7 +71,7 @@ HWND hwndMain, hwndCard = nullptr;
 HWND hCheckStartup, hCheckWindowed, hComboMonitor;
 std::vector<std::wstring> monitorNames;
 AppConfig config;
-std::map<DWORD, AudioSessionInfo> audioSessions;
+std::map<std::wstring, AudioSessionInfo> audioSessions;
 UINT_PTR timerId = 0;
 std::wofstream logFile;
 
@@ -355,15 +359,22 @@ void CheckAllAudioDevices()
 
 void CheckAudioSessionsForDevice(IMMDevice *pDevice)
 {
-    IAudioSessionManager2 *pSessionManager = nullptr;
-    IAudioSessionEnumerator *pSessionEnumerator = nullptr;
+    LPWSTR pwszDeviceId = nullptr;
+    if (FAILED(pDevice->GetId(&pwszDeviceId)))
+    {
+        return;
+    }
+    std::wstring deviceId(pwszDeviceId);
+    CoTaskMemFree(pwszDeviceId);
 
+    IAudioSessionManager2 *pSessionManager = nullptr;
     if (FAILED(pDevice->Activate(__uuidof(IAudioSessionManager2), CLSCTX_ALL,
                                  nullptr, (void **)&pSessionManager)))
     {
         return;
     }
 
+    IAudioSessionEnumerator *pSessionEnumerator = nullptr;
     if (SUCCEEDED(pSessionManager->GetSessionEnumerator(&pSessionEnumerator)))
     {
         int sessionCount = 0;
@@ -378,7 +389,8 @@ void CheckAudioSessionsForDevice(IMMDevice *pDevice)
                     if (SUCCEEDED(pSessionControl->QueryInterface(
                             __uuidof(IAudioSessionControl2), (void **)&pSessionControl2)))
                     {
-                        ProcessAudioSession(pSessionControl2, pSessionControl);
+                        // Passa o deviceId para ProcessAudioSession
+                        ProcessAudioSession(pSessionControl2, pSessionControl, deviceId);
                         pSessionControl2->Release();
                     }
                     pSessionControl->Release();
@@ -428,7 +440,7 @@ std::wstring GetSessionName(IAudioSessionControl2 *pSessionControl2, DWORD pid, 
     }
     return L"";
 }
-void ProcessAudioSession(IAudioSessionControl2 *pSessionControl2, IAudioSessionControl *pSessionControl)
+void ProcessAudioSession(IAudioSessionControl2 *pSessionControl2, IAudioSessionControl *pSessionControl, const std::wstring &deviceId)
 {
     DWORD pid;
     if (FAILED(pSessionControl2->GetProcessId(&pid)))
@@ -459,14 +471,16 @@ void ProcessAudioSession(IAudioSessionControl2 *pSessionControl2, IAudioSessionC
             return;
         }
 
-        auto it = audioSessions.find(pid);
+        // Cria uma chave única combinando PID e deviceId
+        std::wstring sessionKey = std::to_wstring(pid) + L"|" + deviceId;
+
+        auto it = audioSessions.find(sessionKey);
         if (it != audioSessions.end())
         {
-            // Verifica se o volume mudou significativamente (>1%)
             if (fabs(it->second.volume - volume) > 0.01f)
             {
                 it->second.volume = volume;
-                it->second.hasChanged = true; // Marca como alterado
+                it->second.hasChanged = true;
 
                 HICON appIcon = GetProcessIcon(pid);
                 if (it->second.icon)
@@ -475,21 +489,19 @@ void ProcessAudioSession(IAudioSessionControl2 *pSessionControl2, IAudioSessionC
                 }
                 it->second.icon = appIcon;
 
-                // Mostra o card apenas se houve mudança
                 ShowFloatingCard(sessionName, static_cast<int>(round(volume * 100)), appIcon);
             }
             else
             {
-                it->second.hasChanged = false; // Reseta o flag de mudança
+                it->second.hasChanged = false;
             }
         }
         else
         {
-            // Nova sessão - mostra o card apenas se o volume não for 100%
+            HICON appIcon = GetProcessIcon(pid);
+            audioSessions[sessionKey] = {pid, sessionName, volume, isSystemSounds, appIcon, true, deviceId};
             if (volume < 0.99f)
             {
-                HICON appIcon = GetProcessIcon(pid);
-                audioSessions[pid] = {pid, sessionName, volume, isSystemSounds, appIcon, true};
                 ShowFloatingCard(sessionName, static_cast<int>(round(volume * 100)), appIcon);
             }
         }
@@ -502,22 +514,82 @@ void CheckAudioSessions()
     static auto lastCheck = std::chrono::steady_clock::now();
     auto now = std::chrono::steady_clock::now();
 
-    // Verifica a cada 100ms
     if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastCheck).count() < 100)
     {
         return;
     }
     lastCheck = now;
 
-    // Limpa sessões inativas e reseta flags de mudança
-    std::vector<DWORD> toRemove;
+    // Verificação de sessões ativas em todos os dispositivos
+    std::set<std::wstring> activeSessions;
+    IMMDeviceEnumerator *pEnumerator = nullptr;
+    if (SUCCEEDED(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), (void **)&pEnumerator)))
+    {
+        IMMDeviceCollection *pCollection = nullptr;
+        if (SUCCEEDED(pEnumerator->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, &pCollection)))
+        {
+            UINT count = 0;
+            if (SUCCEEDED(pCollection->GetCount(&count)))
+            {
+                for (UINT i = 0; i < count; i++)
+                {
+                    IMMDevice *pDevice = nullptr;
+                    if (SUCCEEDED(pCollection->Item(i, &pDevice)))
+                    {
+                        LPWSTR deviceId = nullptr;
+                        if (SUCCEEDED(pDevice->GetId(&deviceId)))
+                        {
+                            std::wstring currentDeviceId(deviceId);
+                            CoTaskMemFree(deviceId);
+
+                            IAudioSessionManager2 *pSessionManager = nullptr;
+                            if (SUCCEEDED(pDevice->Activate(__uuidof(IAudioSessionManager2), CLSCTX_ALL, nullptr, (void **)&pSessionManager)))
+                            {
+                                IAudioSessionEnumerator *pSessionEnumerator = nullptr;
+                                if (SUCCEEDED(pSessionManager->GetSessionEnumerator(&pSessionEnumerator)))
+                                {
+                                    int sessionCount = 0;
+                                    if (SUCCEEDED(pSessionEnumerator->GetCount(&sessionCount)))
+                                    {
+                                        for (int j = 0; j < sessionCount; j++)
+                                        {
+                                            IAudioSessionControl *pSessionControl = nullptr;
+                                            if (SUCCEEDED(pSessionEnumerator->GetSession(j, &pSessionControl)))
+                                            {
+                                                IAudioSessionControl2 *pSessionControl2 = nullptr;
+                                                if (SUCCEEDED(pSessionControl->QueryInterface(__uuidof(IAudioSessionControl2), (void **)&pSessionControl2)))
+                                                {
+                                                    DWORD pid;
+                                                    if (SUCCEEDED(pSessionControl2->GetProcessId(&pid)))
+                                                    {
+                                                        std::wstring sessionKey = std::to_wstring(pid) + L"|" + currentDeviceId;
+                                                        activeSessions.insert(sessionKey);
+                                                    }
+                                                    pSessionControl2->Release();
+                                                }
+                                                pSessionControl->Release();
+                                            }
+                                        }
+                                    }
+                                    pSessionEnumerator->Release();
+                                }
+                                pSessionManager->Release();
+                            }
+                        }
+                        pDevice->Release();
+                    }
+                }
+            }
+            pCollection->Release();
+        }
+        pEnumerator->Release();
+    }
+
+    // Limpa sessões inativas
+    std::vector<std::wstring> toRemove;
     for (auto &session : audioSessions)
     {
-        session.second.hasChanged = false; // Reseta o flag de mudança
-        bool isActive = false;
-
-        isActive = false;
-        if (!isActive)
+        if (activeSessions.find(session.first) == activeSessions.end())
         {
             if (session.second.icon)
             {
@@ -527,13 +599,9 @@ void CheckAudioSessions()
         }
     }
 
-    for (auto pid : toRemove)
+    for (auto &key : toRemove)
     {
-        if (audioSessions[pid].icon)
-        {
-            DestroyIcon(audioSessions[pid].icon);
-        }
-        audioSessions.erase(pid);
+        audioSessions.erase(key);
     }
 
     CheckAllAudioDevices();
