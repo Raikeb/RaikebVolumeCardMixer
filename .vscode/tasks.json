@@ -1,0 +1,30 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build RaikebVolumeCardMixer",
+            "type": "shell",
+            "command": "g++",
+            "args": [
+                "-municode",
+                "-mwindows",
+                "main.cpp",
+                "-o",
+                "RaikebVolumeCardMixer.exe",
+                "-luser32",
+                "-lshell32",
+                "-lshlwapi",
+                "-lole32",
+                "-loleaut32",
+                "-lmmdevapi",
+                "-luuid",
+                "-lpsapi"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": []
+        }
+    ]
+}
