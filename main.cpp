@@ -1,4 +1,4 @@
-// VolumeCardMixer - Passo 4: Card flutuante com volume e ícone por processo
+// VolumeCardMixer - Passo 4: Volume de processos e card flutuante
 // Autor: Raike
 
 #include <windows.h>
@@ -6,6 +6,17 @@
 #include <shlobj.h>
 #include <vector>
 #include <string>
+#include <mmdeviceapi.h>
+#include <endpointvolume.h>
+#include <audiopolicy.h>
+#include <functiondiscoverykeys.h>
+#include <commctrl.h>
+#include <psapi.h>
+
+#pragma comment(lib, "ole32.lib")
+#pragma comment(lib, "oleaut32.lib")
+#pragma comment(lib, "uuid.lib")
+#pragma comment(lib, "comctl32.lib")
 
 #define WM_TRAYICON (WM_USER + 1)
 #define ID_TRAY_EXIT 1001
@@ -87,23 +98,6 @@ void PopulateMonitorList(HWND combo) {
         SendMessage(combo, CB_ADDSTRING, 0, (LPARAM)name.c_str());
     }
     SendMessage(combo, CB_SETCURSEL, config.selectedMonitor, 0);
-}
-
-void ShowFloatingCard(const std::wstring& processName, int volume) {
-    HWND hwndCard = CreateWindowEx(WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
-        L"STATIC", NULL,
-        WS_POPUP | SS_OWNERDRAW,
-        100 + config.selectedMonitor * 50, 100, 200, 60,
-        NULL, NULL, hInst, NULL);
-
-    std::wstring text = processName + L": " + std::to_wstring(volume) + L"%";
-    SetWindowText(hwndCard, text.c_str());
-    ShowWindow(hwndCard, SW_SHOWNOACTIVATE);
-    UpdateWindow(hwndCard);
-    SetTimer(hwndCard, 1, 1500, [](HWND hwnd, UINT, UINT_PTR, DWORD) {
-        ShowWindow(hwnd, SW_HIDE);
-        DestroyWindow(hwnd);
-    });
 }
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -209,9 +203,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow) {
     if (!hwndMain) return 0;
 
     ShowWindow(hwndMain, config.startWindowed ? SW_HIDE : SW_SHOW);
-
-    // Exemplo de uso do card flutuante
-    ShowFloatingCard(L"chrome.exe", 45);
 
     MSG msg = {};
     while (GetMessage(&msg, NULL, 0, 0)) {
