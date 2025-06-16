@@ -16,7 +16,7 @@
                 "-lshlwapi",
                 "-lole32",
                 "-loleaut32",
-                "-lmmdevapi",
+                "-lwinmm", 
                 "-luuid",
                 "-lpsapi"
             ],
