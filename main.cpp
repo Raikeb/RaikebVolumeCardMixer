@@ -1,6 +1,5 @@
-// VolumeCardMixer - Passo 2: Janela com opções e seleção de monitor
+// VolumeCardMixer - Passo 3: Persistência de configurações e modo Start Windowed
 // Autor: Raike
-// Descrição: Adiciona checkboxes para Launch on Startup, Start Windowed e seleção de monitor
 
 #include <windows.h>
 #include <shellapi.h>
@@ -22,8 +21,39 @@ HWND hwndMain;
 HWND hCheckStartup, hCheckWindowed, hComboMonitor;
 std::vector<std::wstring> monitorNames;
 
+// Estrutura de configuração simples
+struct AppConfig {
+    bool launchOnStartup = false;
+    bool startWindowed = false;
+    int selectedMonitor = 0;
+} config;
+
+void LoadSettings() {
+    HKEY hKey;
+    DWORD val, size = sizeof(DWORD);
+    if (RegOpenKeyEx(HKEY_CURRENT_USER, L"Software\\VolumeCardMixer", 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+        if (RegQueryValueEx(hKey, L"LaunchOnStartup", NULL, NULL, (LPBYTE)&val, &size) == ERROR_SUCCESS)
+            config.launchOnStartup = (val != 0);
+        if (RegQueryValueEx(hKey, L"StartWindowed", NULL, NULL, (LPBYTE)&val, &size) == ERROR_SUCCESS)
+            config.startWindowed = (val != 0);
+        if (RegQueryValueEx(hKey, L"SelectedMonitor", NULL, NULL, (LPBYTE)&val, &size) == ERROR_SUCCESS)
+            config.selectedMonitor = val;
+        RegCloseKey(hKey);
+    }
+}
+
 void SaveSettings() {
-    // TODO: salvar configurações em arquivo .ini ou registro
+    HKEY hKey;
+    DWORD disp;
+    RegCreateKeyEx(HKEY_CURRENT_USER, L"Software\\VolumeCardMixer", 0, NULL, 0, KEY_WRITE, NULL, &hKey, &disp);
+    DWORD val;
+    val = (config.launchOnStartup ? 1 : 0);
+    RegSetValueEx(hKey, L"LaunchOnStartup", 0, REG_DWORD, (LPBYTE)&val, sizeof(DWORD));
+    val = (config.startWindowed ? 1 : 0);
+    RegSetValueEx(hKey, L"StartWindowed", 0, REG_DWORD, (LPBYTE)&val, sizeof(DWORD));
+    val = (DWORD)config.selectedMonitor;
+    RegSetValueEx(hKey, L"SelectedMonitor", 0, REG_DWORD, (LPBYTE)&val, sizeof(DWORD));
+    RegCloseKey(hKey);
 }
 
 BOOL AddToStartup(bool enable) {
@@ -56,7 +86,7 @@ void PopulateMonitorList(HWND combo) {
     for (auto& name : monitorNames) {
         SendMessage(combo, CB_ADDSTRING, 0, (LPARAM)name.c_str());
     }
-    SendMessage(combo, CB_SETCURSEL, 0, 0);
+    SendMessage(combo, CB_SETCURSEL, config.selectedMonitor, 0);
 }
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -76,10 +106,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         hCheckStartup = CreateWindow(L"BUTTON", L"Launch on Startup",
             WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX,
             20, 20, 180, 20, hwnd, (HMENU)ID_CHECK_STARTUP, hInst, NULL);
+        SendMessage(hCheckStartup, BM_SETCHECK, config.launchOnStartup ? BST_CHECKED : BST_UNCHECKED, 0);
 
         hCheckWindowed = CreateWindow(L"BUTTON", L"Start Windowed",
             WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX,
             20, 50, 180, 20, hwnd, (HMENU)ID_CHECK_WINDOWED, hInst, NULL);
+        SendMessage(hCheckWindowed, BM_SETCHECK, config.startWindowed ? BST_CHECKED : BST_UNCHECKED, 0);
 
         // ComboBox para monitores
         CreateWindow(L"STATIC", L"Mostrar card no monitor:",
@@ -103,7 +135,19 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             PostQuitMessage(0);
             break;
         case ID_CHECK_STARTUP:
-            AddToStartup(SendMessage(hCheckStartup, BM_GETCHECK, 0, 0) == BST_CHECKED);
+            config.launchOnStartup = SendMessage(hCheckStartup, BM_GETCHECK, 0, 0) == BST_CHECKED;
+            AddToStartup(config.launchOnStartup);
+            SaveSettings();
+            break;
+        case ID_CHECK_WINDOWED:
+            config.startWindowed = SendMessage(hCheckWindowed, BM_GETCHECK, 0, 0) == BST_CHECKED;
+            SaveSettings();
+            break;
+        case ID_COMBO_MONITOR:
+            if (HIWORD(wParam) == CBN_SELCHANGE) {
+                config.selectedMonitor = (int)SendMessage(hComboMonitor, CB_GETCURSEL, 0, 0);
+                SaveSettings();
+            }
             break;
         }
         break;
@@ -136,6 +180,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow) {
     hInst = hInstance;
+    LoadSettings();
 
     WNDCLASS wc = {};
     wc.lpfnWndProc = WndProc;
@@ -149,7 +194,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow) {
 
     if (!hwndMain) return 0;
 
-    ShowWindow(hwndMain, nCmdShow);
+    ShowWindow(hwndMain, config.startWindowed ? SW_HIDE : SW_SHOW);
 
     MSG msg = {};
     while (GetMessage(&msg, NULL, 0, 0)) {
