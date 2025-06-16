@@ -1,6 +1,5 @@
-// VolumeCardMixer - Passo 5: Card com ícone do processo aparecendo v7
+// VolumeCardMixer - Passo 6: Card com ícone do processo aparecendo no monitor desejado v8
 // Autor: Raike
-// Bug: Mesmo alterando o monitor aparece apenas na tela principal
 #define WIN32_LEAN_AND_MEAN
 #define _CRT_SECURE_NO_WARNINGS
 
@@ -175,18 +174,30 @@ BOOL AddToStartup(bool enable)
 void PopulateMonitorList(HWND combo)
 {
     SendMessageW(combo, CB_RESETCONTENT, 0, 0);
-    DISPLAY_DEVICE displayDevice = {sizeof(DISPLAY_DEVICE)};
-    displayDevice.cb = sizeof(DISPLAY_DEVICE);
+    
+    std::vector<HMONITOR> monitors;
+    EnumDisplayMonitors(NULL, NULL, [](HMONITOR hMonitor, HDC, LPRECT, LPARAM lParam) -> BOOL {
+        auto& monitors = *reinterpret_cast<std::vector<HMONITOR>*>(lParam);
+        monitors.push_back(hMonitor);
+        return TRUE;
+    }, reinterpret_cast<LPARAM>(&monitors));
 
     int monitorIndex = 0;
-    for (int i = 0; EnumDisplayDevicesW(NULL, i, &displayDevice, 0); i++)
+    for (auto hMonitor : monitors)
     {
-        if (displayDevice.StateFlags & DISPLAY_DEVICE_ATTACHED_TO_DESKTOP)
+        MONITORINFOEX monitorInfo = {};
+        monitorInfo.cbSize = sizeof(monitorInfo);
+        if (GetMonitorInfo(hMonitor, &monitorInfo))
         {
             std::wstring monitorName = L"Monitor " + std::to_wstring(monitorIndex + 1);
-            if (wcslen(displayDevice.DeviceString) > 0)
+            if (wcslen(monitorInfo.szDevice) > 0)
             {
-                monitorName += L" (" + std::wstring(displayDevice.DeviceString) + L")";
+                DISPLAY_DEVICE displayDevice = { sizeof(DISPLAY_DEVICE) };
+                displayDevice.cb = sizeof(DISPLAY_DEVICE);
+                if (EnumDisplayDevices(monitorInfo.szDevice, 0, &displayDevice, 0))
+                {
+                    monitorName += L" (" + std::wstring(displayDevice.DeviceString) + L")";
+                }
             }
             SendMessageW(combo, CB_ADDSTRING, 0, (LPARAM)monitorName.c_str());
             monitorIndex++;
@@ -238,9 +249,30 @@ void ShowFloatingCard(const std::wstring &processName, int volume, HICON hIcon =
         hwndCard = nullptr;
     }
 
+    // Obter todos os monitores
+    DISPLAY_DEVICE displayDevice = { sizeof(DISPLAY_DEVICE) };
+    displayDevice.cb = sizeof(DISPLAY_DEVICE);
+    
+    std::vector<HMONITOR> monitors;
+    EnumDisplayMonitors(NULL, NULL, [](HMONITOR hMonitor, HDC, LPRECT, LPARAM lParam) -> BOOL {
+        auto& monitors = *reinterpret_cast<std::vector<HMONITOR>*>(lParam);
+        monitors.push_back(hMonitor);
+        return TRUE;
+    }, reinterpret_cast<LPARAM>(&monitors));
+
+    // Verificar se temos o monitor selecionado disponível
+    HMONITOR hMonitor = NULL;
+    if (config.selectedMonitor >= 0 && config.selectedMonitor < (int)monitors.size())
+    {
+        hMonitor = monitors[config.selectedMonitor];
+    }
+    else
+    {
+        hMonitor = MonitorFromPoint({ 0, 0 }, MONITOR_DEFAULTTOPRIMARY);
+    }
+
     MONITORINFOEX monitorInfo = {};
     monitorInfo.cbSize = sizeof(monitorInfo);
-    HMONITOR hMonitor = MonitorFromPoint({0, 0}, MONITOR_DEFAULTTOPRIMARY);
     GetMonitorInfo(hMonitor, &monitorInfo);
 
     int width = 280;
@@ -703,6 +735,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow)
 {
+    SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
     OpenLogFile();
     LogMessage(L"Program started");
 
