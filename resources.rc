@@ -1,4 +1,8 @@
-#include <windows.h>
+#include "resources.h"
 
-// Ícone principal
-IDI_ICON1 ICON "Icone.ico"
+// Ícones como recursos embutidos
+IDI_MAIN_ICON      ICON "Icone.ico"
+IDI_TRAY_ICON      ICON "IconeMini.ico"
+IDI_GITHUB_ICON    ICON "IconeGithub.ico"
+IDI_X_ICON         ICON "IconeX.ico"
+IDI_LINKEDIN_ICON  ICON "IconeLinkedin.ico"

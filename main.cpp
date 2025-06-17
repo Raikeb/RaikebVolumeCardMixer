@@ -1,4 +1,4 @@
-// RaikebVolumeCardMixer - v9 Personalização, fundo preto e redes sociais.
+// RaikebVolumeCardMixer - v10 Personalização, reposicionamento do card popup.
 // Autor: Raike
 // Bug: As vezes ao inciar com o windows fica piscando o Card popup
 #define WIN32_LEAN_AND_MEAN
@@ -42,7 +42,12 @@ constexpr UINT VOLUME_CHECK_INTERVAL = 500;
 constexpr size_t MAX_LOG_SIZE = 30 * 1024;
 const wchar_t CLASS_NAME[] = L"VolumeCardMixerWindowClass";
 const wchar_t CARD_CLASS_NAME[] = L"VolumeCardMixerCardClass";
-
+constexpr UINT ID_COMBO_POSITION = 2004;
+const std::vector<std::wstring> positionOptions = {
+    L"Bottom right (default)",
+    L"Top right",
+    L"Bottom left",
+    L"Top left"};
 // Function declarations
 void CheckAudioSessionsForDevice(IMMDevice *pDevice);
 void ProcessAudioSession(IAudioSessionControl2 *pSessionControl2,
@@ -67,6 +72,7 @@ struct AppConfig
     bool launchOnStartup = false;
     bool startWindowed = false;
     int selectedMonitor = 0;
+    int cardPosition = 0;
 };
 
 // Variáveis Globais
@@ -136,6 +142,8 @@ void LoadSettings()
             config.startWindowed = (val != 0);
         if (RegQueryValueExW(hKey, L"SelectedMonitor", NULL, NULL, (LPBYTE)&val, &size) == ERROR_SUCCESS)
             config.selectedMonitor = val;
+        if (RegQueryValueExW(hKey, L"CardPosition", NULL, NULL, (LPBYTE)&val, &size) == ERROR_SUCCESS)
+            config.cardPosition = val;
         RegCloseKey(hKey);
     }
 }
@@ -152,6 +160,8 @@ void SaveSettings()
         RegSetValueExW(hKey, L"StartWindowed", 0, REG_DWORD, (LPBYTE)&val, sizeof(DWORD));
         val = (DWORD)config.selectedMonitor;
         RegSetValueExW(hKey, L"SelectedMonitor", 0, REG_DWORD, (LPBYTE)&val, sizeof(DWORD));
+        val = (DWORD)config.cardPosition;
+        RegSetValueExW(hKey, L"CardPosition", 0, REG_DWORD, (LPBYTE)&val, sizeof(DWORD));
         RegCloseKey(hKey);
     }
 }
@@ -283,8 +293,28 @@ void ShowFloatingCard(const std::wstring &processName, int volume, HICON hIcon =
 
     int width = 280;
     int height = 60;
-    int posX = monitorInfo.rcMonitor.left + 20;
-    int posY = monitorInfo.rcMonitor.bottom - height - 20;
+    int posX, posY;
+
+    switch (config.cardPosition)
+    {
+    case 1: // Top right
+        posX = monitorInfo.rcMonitor.right - width - 20;
+        posY = monitorInfo.rcMonitor.top + 20;
+        break;
+    case 2: // Bottom left
+        posX = monitorInfo.rcMonitor.left + 20;
+        posY = monitorInfo.rcMonitor.bottom - height - 55;
+        break;
+    case 3: // Top left
+        posX = monitorInfo.rcMonitor.left + 20;
+        posY = monitorInfo.rcMonitor.top + 20;
+        break;
+    case 0: // Bottom right (default)
+    default:
+        posX = monitorInfo.rcMonitor.right - width - 20;
+        posY = monitorInfo.rcMonitor.bottom - height - 55;
+        break;
+    }
 
     hwndCard = CreateWindowExW(
         WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED | WS_EX_NOACTIVATE,
@@ -689,19 +719,34 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         SendMessageW(hCheckWindowed, BM_SETCHECK, config.startWindowed ? BST_CHECKED : BST_UNCHECKED, 0);
         SetWindowTheme(hCheckWindowed, L"DarkMode_Explorer", NULL);
 
-        HWND hStaticMonitor = CreateWindowW(L"STATIC", L"Card popup location:",
+        HWND hStaticMonitor = CreateWindowW(L"STATIC", L"Preferred display:",
                                             WS_VISIBLE | WS_CHILD,
-                                            20, 90, 137, 20, hwnd, NULL, hInst, NULL);
+                                            20, 80, 120, 20, hwnd, NULL, hInst, NULL);
         SetWindowTheme(hStaticMonitor, L"DarkMode_Explorer", NULL);
 
         hComboMonitor = CreateWindowW(L"COMBOBOX", NULL,
                                       WS_VISIBLE | WS_CHILD | CBS_DROPDOWNLIST,
-                                      20, 110, 200, 200, hwnd, (HMENU)ID_COMBO_MONITOR, hInst, NULL);
+                                      20, 98, 200, 200, hwnd, (HMENU)ID_COMBO_MONITOR, hInst, NULL);
         SetWindowTheme(hComboMonitor, L"DarkMode_Explorer", NULL);
         PopulateMonitorList(hComboMonitor);
 
-        timerId = SetTimer(hwnd, TIMER_ID, 100, NULL);
+        HWND hStaticPosition = CreateWindowW(L"STATIC", L"Card popup location:",
+                                             WS_VISIBLE | WS_CHILD,
+                                             20, 130, 137, 20, hwnd, NULL, hInst, NULL);
+        SetWindowTheme(hStaticPosition, L"DarkMode_Explorer", NULL);
 
+        HWND hComboPosition = CreateWindowW(L"COMBOBOX", NULL,
+                                            WS_VISIBLE | WS_CHILD | CBS_DROPDOWNLIST,
+                                            20, 148, 200, 200, hwnd, (HMENU)ID_COMBO_POSITION, hInst, NULL);
+        SetWindowTheme(hComboPosition, L"DarkMode_Explorer", NULL);
+
+        for (const auto &option : positionOptions)
+        {
+            SendMessageW(hComboPosition, CB_ADDSTRING, 0, (LPARAM)option.c_str());
+        }
+        SendMessageW(hComboPosition, CB_SETCURSEL, config.cardPosition, 0);
+
+        timerId = SetTimer(hwnd, TIMER_ID, 100, NULL);
 
         HFONT hFontMono = CreateFontW(12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
                                       DEFAULT_CHARSET, OUT_OUTLINE_PRECIS, CLIP_DEFAULT_PRECIS,
@@ -717,7 +762,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                                        175, 30, 400, 60, hwnd, NULL, hInst, NULL);
 
         SendMessageW(hAsciiArt, WM_SETFONT, (WPARAM)hFontMono, TRUE);
-        
 
         HWND hPoweredBy = CreateWindowW(L"STATIC", L"Follow Raikeb ⬇️",
                                         WS_VISIBLE | WS_CHILD | SS_CENTER,
@@ -788,6 +832,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             if (HIWORD(wParam) == CBN_SELCHANGE)
             {
                 config.selectedMonitor = (int)SendMessageW(hComboMonitor, CB_GETCURSEL, 0, 0);
+                SaveSettings();
+            }
+            break;
+        case ID_COMBO_POSITION:
+            if (HIWORD(wParam) == CBN_SELCHANGE)
+            {
+                config.cardPosition = (int)SendMessageW((HWND)lParam, CB_GETCURSEL, 0, 0);
                 SaveSettings();
             }
             break;
