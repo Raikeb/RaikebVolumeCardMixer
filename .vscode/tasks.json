@@ -18,7 +18,9 @@
                 "-loleaut32",
                 "-lwinmm",
                 "-luuid",
-                "-lpsapi"
+                "-lpsapi",
+                "-luxtheme",
+                "-ldwmapi"
             ],
             "group": {
                 "kind": "build",

@@ -1,5 +1,6 @@
-// VolumeCardMixer - Passo 6: Card com ícone do processo aparecendo no monitor desejado v8
+// RaikebVolumeCardMixer - v9 Personalização, fundo preto e redes sociais.
 // Autor: Raike
+// Bug: As vezes ao inciar com o windows fica piscando o Card popup
 #define WIN32_LEAN_AND_MEAN
 #define _CRT_SECURE_NO_WARNINGS
 
@@ -23,8 +24,13 @@
 #include <cmath>
 #include <combaseapi.h>
 #include <shlwapi.h>
+#include <dwmapi.h>
+#pragma comment(lib, "dwmapi.lib")
 
 // Constantes
+constexpr UINT ID_GITHUB_BUTTON = 100;
+constexpr UINT ID_LINKEDIN_BUTTON = 101;
+constexpr UINT ID_X_BUTTON = 102;
 constexpr UINT WM_TRAYICON = WM_USER + 1;
 constexpr UINT ID_TRAY_EXIT = 1001;
 constexpr UINT ID_TRAY_OPEN = 1002;
@@ -174,13 +180,13 @@ BOOL AddToStartup(bool enable)
 void PopulateMonitorList(HWND combo)
 {
     SendMessageW(combo, CB_RESETCONTENT, 0, 0);
-    
+
     std::vector<HMONITOR> monitors;
-    EnumDisplayMonitors(NULL, NULL, [](HMONITOR hMonitor, HDC, LPRECT, LPARAM lParam) -> BOOL {
+    EnumDisplayMonitors(NULL, NULL, [](HMONITOR hMonitor, HDC, LPRECT, LPARAM lParam) -> BOOL
+                        {
         auto& monitors = *reinterpret_cast<std::vector<HMONITOR>*>(lParam);
         monitors.push_back(hMonitor);
-        return TRUE;
-    }, reinterpret_cast<LPARAM>(&monitors));
+        return TRUE; }, reinterpret_cast<LPARAM>(&monitors));
 
     int monitorIndex = 0;
     for (auto hMonitor : monitors)
@@ -192,7 +198,7 @@ void PopulateMonitorList(HWND combo)
             std::wstring monitorName = L"Monitor " + std::to_wstring(monitorIndex + 1);
             if (wcslen(monitorInfo.szDevice) > 0)
             {
-                DISPLAY_DEVICE displayDevice = { sizeof(DISPLAY_DEVICE) };
+                DISPLAY_DEVICE displayDevice = {sizeof(DISPLAY_DEVICE)};
                 displayDevice.cb = sizeof(DISPLAY_DEVICE);
                 if (EnumDisplayDevices(monitorInfo.szDevice, 0, &displayDevice, 0))
                 {
@@ -250,15 +256,15 @@ void ShowFloatingCard(const std::wstring &processName, int volume, HICON hIcon =
     }
 
     // Obter todos os monitores
-    DISPLAY_DEVICE displayDevice = { sizeof(DISPLAY_DEVICE) };
+    DISPLAY_DEVICE displayDevice = {sizeof(DISPLAY_DEVICE)};
     displayDevice.cb = sizeof(DISPLAY_DEVICE);
-    
+
     std::vector<HMONITOR> monitors;
-    EnumDisplayMonitors(NULL, NULL, [](HMONITOR hMonitor, HDC, LPRECT, LPARAM lParam) -> BOOL {
+    EnumDisplayMonitors(NULL, NULL, [](HMONITOR hMonitor, HDC, LPRECT, LPARAM lParam) -> BOOL
+                        {
         auto& monitors = *reinterpret_cast<std::vector<HMONITOR>*>(lParam);
         monitors.push_back(hMonitor);
-        return TRUE;
-    }, reinterpret_cast<LPARAM>(&monitors));
+        return TRUE; }, reinterpret_cast<LPARAM>(&monitors));
 
     // Verificar se temos o monitor selecionado disponível
     HMONITOR hMonitor = NULL;
@@ -268,7 +274,7 @@ void ShowFloatingCard(const std::wstring &processName, int volume, HICON hIcon =
     }
     else
     {
-        hMonitor = MonitorFromPoint({ 0, 0 }, MONITOR_DEFAULTTOPRIMARY);
+        hMonitor = MonitorFromPoint({0, 0}, MONITOR_DEFAULTTOPRIMARY);
     }
 
     MONITORINFOEX monitorInfo = {};
@@ -309,13 +315,14 @@ LRESULT CALLBACK CardWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     switch (msg)
     {
+
     case WM_PAINT:
     {
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hwnd, &ps);
         RECT rect;
         GetClientRect(hwnd, &rect);
-
+        // fundo
         HBRUSH bgBrush = CreateSolidBrush(RGB(50, 50, 50));
         FillRect(hdc, &rect, bgBrush);
         DeleteObject(bgBrush);
@@ -645,31 +652,110 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
     case WM_CREATE:
     {
+        // Configura o ícone da janela
+        HICON hAppIcon = (HICON)LoadImageW(hInst, L"Icone.ico", IMAGE_ICON, 0, 0, LR_LOADFROMFILE);
+        if (hAppIcon)
+        {
+            SendMessageW(hwnd, WM_SETICON, ICON_BIG, (LPARAM)hAppIcon);
+            SendMessageW(hwnd, WM_SETICON, ICON_SMALL, (LPARAM)hAppIcon);
+        }
+
+        // Configura o ícone da bandeja
         nid.cbSize = sizeof(NOTIFYICONDATA);
         nid.hWnd = hwnd;
         nid.uID = 1;
         nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
         nid.uCallbackMessage = WM_TRAYICON;
-        nid.hIcon = LoadIcon(NULL, IDI_APPLICATION);
-        wcscpy_s(nid.szTip, L"Volume Card Mixer");
+        HICON hTrayIcon = (HICON)LoadImageW(hInst, L"IconeMini.ico", IMAGE_ICON, 16, 16, LR_LOADFROMFILE);
+        if (!hTrayIcon)
+            hTrayIcon = LoadIconW(NULL, IDI_APPLICATION);
+        nid.hIcon = hTrayIcon;
+        wcscpy_s(nid.szTip, L"Raikeb Volume Card Mixer");
         Shell_NotifyIconW(NIM_ADD, &nid);
 
-        hCheckStartup = CreateWindowW(L"BUTTON", L"Launch on Startup", WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX,
-                                      20, 20, 180, 20, hwnd, (HMENU)ID_CHECK_STARTUP, hInst, NULL);
+        // Configura o fundo escuro
+        SetClassLongPtr(hwnd, GCLP_HBRBACKGROUND, (LONG_PTR)CreateSolidBrush(RGB(32, 32, 32)));
+
+        // Cria os controles com cores escuras
+        hCheckStartup = CreateWindowW(L"BUTTON", L"Launch on Startup",
+                                      WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX,
+                                      20, 20, 140, 20, hwnd, (HMENU)ID_CHECK_STARTUP, hInst, NULL);
         SendMessageW(hCheckStartup, BM_SETCHECK, config.launchOnStartup ? BST_CHECKED : BST_UNCHECKED, 0);
+        SetWindowTheme(hCheckStartup, L"DarkMode_Explorer", NULL);
 
-        hCheckWindowed = CreateWindowW(L"BUTTON", L"Start Windowed", WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX,
-                                       20, 50, 180, 20, hwnd, (HMENU)ID_CHECK_WINDOWED, hInst, NULL);
+        hCheckWindowed = CreateWindowW(L"BUTTON", L"Start Windowed",
+                                       WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX,
+                                       20, 50, 125, 20, hwnd, (HMENU)ID_CHECK_WINDOWED, hInst, NULL);
         SendMessageW(hCheckWindowed, BM_SETCHECK, config.startWindowed ? BST_CHECKED : BST_UNCHECKED, 0);
+        SetWindowTheme(hCheckWindowed, L"DarkMode_Explorer", NULL);
 
-        CreateWindowW(L"STATIC", L"Mostrar card no monitor:", WS_VISIBLE | WS_CHILD,
-                      20, 90, 200, 20, hwnd, NULL, hInst, NULL);
+        HWND hStaticMonitor = CreateWindowW(L"STATIC", L"Card popup location:",
+                                            WS_VISIBLE | WS_CHILD,
+                                            20, 90, 137, 20, hwnd, NULL, hInst, NULL);
+        SetWindowTheme(hStaticMonitor, L"DarkMode_Explorer", NULL);
 
-        hComboMonitor = CreateWindowW(L"COMBOBOX", NULL, WS_VISIBLE | WS_CHILD | CBS_DROPDOWNLIST,
+        hComboMonitor = CreateWindowW(L"COMBOBOX", NULL,
+                                      WS_VISIBLE | WS_CHILD | CBS_DROPDOWNLIST,
                                       20, 110, 200, 200, hwnd, (HMENU)ID_COMBO_MONITOR, hInst, NULL);
+        SetWindowTheme(hComboMonitor, L"DarkMode_Explorer", NULL);
         PopulateMonitorList(hComboMonitor);
 
         timerId = SetTimer(hwnd, TIMER_ID, 100, NULL);
+
+
+        HFONT hFontMono = CreateFontW(12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+                                      DEFAULT_CHARSET, OUT_OUTLINE_PRECIS, CLIP_DEFAULT_PRECIS,
+                                      CLEARTYPE_QUALITY, VARIABLE_PITCH, L"Consolas");
+
+        HWND hAsciiArt = CreateWindowW(L"STATIC",
+                                       L"⠀⠀⠀⠀⠀⠀⠀⢀⣴⠾⠛⢛⣛⣷⣄⣠⣾⣛⡛⠛⠷⣦⡀⠀⠀⠀⠀⠀⠀⠀    \n"
+                                       L"⢠⣤⠄⠀⠀⠀⣰⡟⠁⢠⡾⠛⢉⣹⣿⣿⣟⡉⠙⢷⣄⠈⠻⣦⠀⠀⠀⠠⣦⣄  \n"
+                                       L"⣿⡀⠀⣀⣤⡾⠋⠀⣠⡟⠁⣰⡟⠁⣹⣯⠈⠻⣆⠀⠻⣆⠀⠙⠷⣦⣀⠀⢀⣿  \n"
+                                       L"⠹⣿⡛⠋⠁⠀⢀⣴⠏⠀⢠⡿⣠⡴⠏⠙⢷⣄⢻⡆⠀⠙⣷⡀⠀⠈⠉⠛⣻⠏  \n"
+                                       L"⠀⠈⠻⢶⣶⣶⣟⣡⣤⣴⠿⠟⠋⠀⠀⠀⠀⠉⠛⠿⣦⣤⣌⣻⣷⣶⡶⠟⠉⠀   ",
+                                       WS_VISIBLE | WS_CHILD,
+                                       175, 30, 400, 60, hwnd, NULL, hInst, NULL);
+
+        SendMessageW(hAsciiArt, WM_SETFONT, (WPARAM)hFontMono, TRUE);
+        
+
+        HWND hPoweredBy = CreateWindowW(L"STATIC", L"Follow Raikeb ⬇️",
+                                        WS_VISIBLE | WS_CHILD | SS_CENTER,
+                                        250, 110, 111, 20, hwnd, NULL, hInst, NULL);
+        SetWindowTheme(hPoweredBy, L"DarkMode_Explorer", NULL);
+
+        // Botão GitHub
+        HWND hGitHub = CreateWindowW(L"BUTTON", NULL,
+                                     WS_VISIBLE | WS_CHILD | BS_ICON | BS_FLAT,
+                                     250, 130, 32, 32, hwnd, (HMENU)ID_GITHUB_BUTTON, hInst, NULL);
+        HICON hGitHubIcon = (HICON)LoadImageW(hInst, L"IconeGithub.ico", IMAGE_ICON, 32, 32, LR_LOADFROMFILE);
+        if (!hGitHubIcon)
+            hGitHubIcon = LoadIconW(NULL, IDI_APPLICATION);
+        SendMessageW(hGitHub, BM_SETIMAGE, IMAGE_ICON, (LPARAM)hGitHubIcon);
+        SetWindowTheme(hGitHub, L"DarkMode_Explorer", NULL);
+
+        // Botão X (Twitter)
+        HWND hXButton = CreateWindowW(L"BUTTON", NULL,
+                                      WS_VISIBLE | WS_CHILD | BS_ICON | BS_FLAT,
+                                      290, 130, 32, 32, hwnd, (HMENU)ID_X_BUTTON, hInst, NULL);
+        HICON hXIcon = (HICON)LoadImageW(hInst, L"IconeX.ico", IMAGE_ICON, 32, 32, LR_LOADFROMFILE);
+        if (!hXIcon)
+            hXIcon = LoadIconW(NULL, IDI_APPLICATION);
+        SendMessageW(hXButton, BM_SETIMAGE, IMAGE_ICON, (LPARAM)hXIcon);
+        SetWindowTheme(hXButton, L"DarkMode_Explorer", NULL);
+
+        // Botão LinkedIn
+        HWND hLinkedIn = CreateWindowW(L"BUTTON", NULL,
+                                       WS_VISIBLE | WS_CHILD | BS_ICON | BS_FLAT,
+                                       330, 130, 32, 32, hwnd, (HMENU)ID_LINKEDIN_BUTTON, hInst, NULL);
+        HICON hLinkedInIcon = (HICON)LoadImageW(hInst, L"IconeLinkedin.ico", IMAGE_ICON, 32, 32, LR_LOADFROMFILE);
+        if (!hLinkedInIcon)
+            hLinkedInIcon = LoadIconW(NULL, IDI_APPLICATION);
+        SendMessageW(hLinkedIn, BM_SETIMAGE, IMAGE_ICON, (LPARAM)hLinkedInIcon);
+        SetWindowTheme(hLinkedIn, L"DarkMode_Explorer", NULL);
+
+        // Força o redesenho da janela com o tema escuro
+        SetWindowPos(hwnd, NULL, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
         break;
     }
     case WM_TIMER:
@@ -705,8 +791,32 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 SaveSettings();
             }
             break;
+        case ID_GITHUB_BUTTON:
+            ShellExecuteW(NULL, L"open", L"https://github.com/Raikeb/RaikebVolumeCardMixer", NULL, NULL, SW_SHOWNORMAL);
+            break;
+        case ID_X_BUTTON:
+            ShellExecuteW(NULL, L"open", L"https://x.com/Raikeb", NULL, NULL, SW_SHOWNORMAL);
+            break;
+        case ID_LINKEDIN_BUTTON:
+            ShellExecuteW(NULL, L"open", L"https://www.linkedin.com/in/raikeb/", NULL, NULL, SW_SHOWNORMAL);
+            break;
         }
         break;
+    case WM_CTLCOLORSTATIC:
+    case WM_CTLCOLORBTN:
+    {
+        HDC hdc = (HDC)wParam;
+        SetTextColor(hdc, RGB(255, 255, 255));
+        SetBkColor(hdc, RGB(32, 32, 32));
+        return (LRESULT)GetStockObject(BLACK_BRUSH);
+    }
+    case WM_CTLCOLOREDIT:
+    {
+        HDC hdc = (HDC)wParam;
+        SetTextColor(hdc, RGB(255, 255, 255));
+        SetBkColor(hdc, RGB(64, 64, 64));
+        return (LRESULT)CreateSolidBrush(RGB(64, 64, 64));
+    }
     case WM_TRAYICON:
         if (lParam == WM_RBUTTONUP)
         {
@@ -735,6 +845,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow)
 {
+    HICON hIcon = (HICON)LoadImageW(hInstance, L"Icone.ico", IMAGE_ICON, 0, 0, LR_LOADFROMFILE);
+    if (!hIcon)
+    {
+        hIcon = LoadIconW(NULL, IDI_APPLICATION);
+    }
     SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
     OpenLogFile();
     LogMessage(L"Program started");
@@ -778,7 +893,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow)
         return 1;
     }
 
-    hwndMain = CreateWindowW(CLASS_NAME, L"Volume Card Mixer", WS_OVERLAPPEDWINDOW,
+    hwndMain = CreateWindowW(CLASS_NAME, L"Raikeb Volume Card Mixer", WS_OVERLAPPEDWINDOW,
                              CW_USEDEFAULT, CW_USEDEFAULT, 400, 220,
                              NULL, NULL, hInstance, NULL);
 
