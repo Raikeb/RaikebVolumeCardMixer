@@ -1,8 +1,8 @@
 #include "resources.h"
 
 // Ícones como recursos embutidos
-IDI_MAIN_ICON      ICON "Icone.ico"
-IDI_TRAY_ICON      ICON "IconeMini.ico"
-IDI_GITHUB_ICON    ICON "IconeGithub.ico"
-IDI_X_ICON         ICON "IconeX.ico"
-IDI_LINKEDIN_ICON  ICON "IconeLinkedin.ico"
+IDI_MAIN_ICON      ICON "resources/Icone.ico"
+IDI_TRAY_ICON      ICON "resources/IconeMini.ico"
+IDI_GITHUB_ICON    ICON "resources/IconeGithub.ico"
+IDI_X_ICON         ICON "resources/IconeX.ico"
+IDI_LINKEDIN_ICON  ICON "resources/IconeLinkedin.ico"

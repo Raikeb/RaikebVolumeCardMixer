@@ -1,6 +1,5 @@
-// RaikebVolumeCardMixer - v10 Personalização, reposicionamento do card popup.
+// RaikebVolumeCardMixer - v11 Correção do Card popup piscando ao iniciar com windows.
 // Autor: Raike
-// Bug: As vezes ao inciar com o windows fica piscando o Card popup
 #define WIN32_LEAN_AND_MEAN
 #define _CRT_SECURE_NO_WARNINGS
 
@@ -48,6 +47,7 @@ const std::vector<std::wstring> positionOptions = {
     L"Top right",
     L"Bottom left",
     L"Top left"};
+
 // Function declarations
 void CheckAudioSessionsForDevice(IMMDevice *pDevice);
 void ProcessAudioSession(IAudioSessionControl2 *pSessionControl2,
@@ -68,7 +68,7 @@ struct AudioSessionInfo
 };
 
 struct AppConfig
-{
+{   
     bool launchOnStartup = false;
     bool startWindowed = false;
     int selectedMonitor = 0;
@@ -85,6 +85,7 @@ AppConfig config;
 std::map<std::wstring, AudioSessionInfo> audioSessions;
 UINT_PTR timerId = 0;
 std::wofstream logFile;
+bool firstCheck = true;
 
 void OpenLogFile()
 {
@@ -251,7 +252,6 @@ void ShowFloatingCard(const std::wstring &processName, int volume, HICON hIcon =
     auto now = std::chrono::steady_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastShowTime).count();
 
-    // Evita mostrar o mesmo card repetidamente em curto período
     if (processName == lastProcessName && volume == lastVolume && elapsed < 1000)
     {
         if (hIcon)
@@ -337,7 +337,7 @@ void ShowFloatingCard(const std::wstring &processName, int volume, HICON hIcon =
         }
 
         ShowWindow(hwndCard, SW_SHOWNOACTIVATE);
-        SetTimer(hwndCard, 1, 1500, nullptr); // 1.5 segundos
+        SetTimer(hwndCard, 1, 1500, nullptr); 
     }
 }
 
@@ -352,6 +352,7 @@ LRESULT CALLBACK CardWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         HDC hdc = BeginPaint(hwnd, &ps);
         RECT rect;
         GetClientRect(hwnd, &rect);
+
         // fundo
         HBRUSH bgBrush = CreateSolidBrush(RGB(50, 50, 50));
         FillRect(hdc, &rect, bgBrush);
@@ -540,7 +541,6 @@ void ProcessAudioSession(IAudioSessionControl2 *pSessionControl2, IAudioSessionC
             return;
         }
 
-        // Cria uma chave única combinando PID e deviceId
         std::wstring sessionKey = std::to_wstring(pid) + L"|" + deviceId;
 
         auto it = audioSessions.find(sessionKey);
@@ -558,7 +558,11 @@ void ProcessAudioSession(IAudioSessionControl2 *pSessionControl2, IAudioSessionC
                 }
                 it->second.icon = appIcon;
 
-                ShowFloatingCard(sessionName, static_cast<int>(round(volume * 100)), appIcon);
+                
+                if (!firstCheck)
+                {
+                    ShowFloatingCard(sessionName, static_cast<int>(round(volume * 100)), appIcon);
+                }
             }
             else
             {
@@ -569,7 +573,9 @@ void ProcessAudioSession(IAudioSessionControl2 *pSessionControl2, IAudioSessionC
         {
             HICON appIcon = GetProcessIcon(pid);
             audioSessions[sessionKey] = {pid, sessionName, volume, isSystemSounds, appIcon, true, deviceId};
-            if (volume < 0.99f)
+            
+           
+            if (!firstCheck && volume < 0.99f)
             {
                 ShowFloatingCard(sessionName, static_cast<int>(round(volume * 100)), appIcon);
             }
@@ -589,6 +595,13 @@ void CheckAudioSessions()
     }
     lastCheck = now;
 
+    if (firstCheck)
+    {
+        CheckAllAudioDevices();
+        firstCheck = false;
+        return;
+    }
+    
     // Verificação de sessões ativas em todos os dispositivos
     std::set<std::wstring> activeSessions;
     IMMDeviceEnumerator *pEnumerator = nullptr;
@@ -683,7 +696,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_CREATE:
     {
         // Configura o ícone da janela
-        HICON hAppIcon = (HICON)LoadImageW(hInst, L"Icone.ico", IMAGE_ICON, 0, 0, LR_LOADFROMFILE);
+        HICON hAppIcon = (HICON)LoadImageW(hInst, L"resources/Icone.ico", IMAGE_ICON, 0, 0, LR_LOADFROMFILE);
         if (hAppIcon)
         {
             SendMessageW(hwnd, WM_SETICON, ICON_BIG, (LPARAM)hAppIcon);
@@ -696,7 +709,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         nid.uID = 1;
         nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
         nid.uCallbackMessage = WM_TRAYICON;
-        HICON hTrayIcon = (HICON)LoadImageW(hInst, L"IconeMini.ico", IMAGE_ICON, 16, 16, LR_LOADFROMFILE);
+        HICON hTrayIcon = (HICON)LoadImageW(hInst, L"resources/IconeMini.ico", IMAGE_ICON, 16, 16, LR_LOADFROMFILE);
         if (!hTrayIcon)
             hTrayIcon = LoadIconW(NULL, IDI_APPLICATION);
         nid.hIcon = hTrayIcon;
@@ -772,7 +785,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         HWND hGitHub = CreateWindowW(L"BUTTON", NULL,
                                      WS_VISIBLE | WS_CHILD | BS_ICON | BS_FLAT,
                                      250, 130, 32, 32, hwnd, (HMENU)ID_GITHUB_BUTTON, hInst, NULL);
-        HICON hGitHubIcon = (HICON)LoadImageW(hInst, L"IconeGithub.ico", IMAGE_ICON, 32, 32, LR_LOADFROMFILE);
+        HICON hGitHubIcon = (HICON)LoadImageW(hInst, L"resources/IconeGithub.ico", IMAGE_ICON, 32, 32, LR_LOADFROMFILE);
         if (!hGitHubIcon)
             hGitHubIcon = LoadIconW(NULL, IDI_APPLICATION);
         SendMessageW(hGitHub, BM_SETIMAGE, IMAGE_ICON, (LPARAM)hGitHubIcon);
@@ -782,7 +795,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         HWND hXButton = CreateWindowW(L"BUTTON", NULL,
                                       WS_VISIBLE | WS_CHILD | BS_ICON | BS_FLAT,
                                       290, 130, 32, 32, hwnd, (HMENU)ID_X_BUTTON, hInst, NULL);
-        HICON hXIcon = (HICON)LoadImageW(hInst, L"IconeX.ico", IMAGE_ICON, 32, 32, LR_LOADFROMFILE);
+        HICON hXIcon = (HICON)LoadImageW(hInst, L"resources/IconeX.ico", IMAGE_ICON, 32, 32, LR_LOADFROMFILE);
         if (!hXIcon)
             hXIcon = LoadIconW(NULL, IDI_APPLICATION);
         SendMessageW(hXButton, BM_SETIMAGE, IMAGE_ICON, (LPARAM)hXIcon);
@@ -792,7 +805,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         HWND hLinkedIn = CreateWindowW(L"BUTTON", NULL,
                                        WS_VISIBLE | WS_CHILD | BS_ICON | BS_FLAT,
                                        330, 130, 32, 32, hwnd, (HMENU)ID_LINKEDIN_BUTTON, hInst, NULL);
-        HICON hLinkedInIcon = (HICON)LoadImageW(hInst, L"IconeLinkedin.ico", IMAGE_ICON, 32, 32, LR_LOADFROMFILE);
+        HICON hLinkedInIcon = (HICON)LoadImageW(hInst, L"resources/IconeLinkedin.ico", IMAGE_ICON, 32, 32, LR_LOADFROMFILE);
         if (!hLinkedInIcon)
             hLinkedInIcon = LoadIconW(NULL, IDI_APPLICATION);
         SendMessageW(hLinkedIn, BM_SETIMAGE, IMAGE_ICON, (LPARAM)hLinkedInIcon);
@@ -896,7 +909,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow)
 {
-    HICON hIcon = (HICON)LoadImageW(hInstance, L"Icone.ico", IMAGE_ICON, 0, 0, LR_LOADFROMFILE);
+    HICON hIcon = (HICON)LoadImageW(hInstance, L"resources/Icone.ico", IMAGE_ICON, 0, 0, LR_LOADFROMFILE);
     if (!hIcon)
     {
         hIcon = LoadIconW(NULL, IDI_APPLICATION);
