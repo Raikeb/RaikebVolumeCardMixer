@@ -2,6 +2,26 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "Compile Resources",
+            "type": "shell",
+            "command": "windres",
+            "args": [
+                "resources.rc",
+                "-O",
+                "coff",
+                "-o",
+                "resources.res"
+            ],
+            "group": "build",
+            "problemMatcher": [],
+            "options": {
+                "shell": {
+                    "executable": "cmd.exe",
+                    "args": ["/d", "/c"]
+                }
+            }
+        },
+        {
             "label": "Build RaikebVolumeCardMixer",
             "type": "shell",
             "command": "g++",
@@ -9,6 +29,7 @@
                 "-municode",
                 "-mwindows",
                 "main.cpp",
+                "resources.res",
                 "-o",
                 "RaikebVolumeCardMixer.exe",
                 "-luser32",
@@ -26,6 +47,7 @@
                 "kind": "build",
                 "isDefault": true
             },
+            "dependsOn": ["Compile Resources"],
             "problemMatcher": [],
             "options": {
                 "cwd": "${workspaceFolder}"

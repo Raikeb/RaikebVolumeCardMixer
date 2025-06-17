@@ -1,0 +1,4 @@
+#include <windows.h>
+
+// Ícone principal
+IDI_ICON1 ICON "Icone.ico"
