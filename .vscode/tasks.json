@@ -17,7 +17,10 @@
             "options": {
                 "shell": {
                     "executable": "cmd.exe",
-                    "args": ["/d", "/c"]
+                    "args": [
+                        "/d",
+                        "/c"
+                    ]
                 }
             }
         },
@@ -32,6 +35,9 @@
                 "resources.res",
                 "-o",
                 "RaikebVolumeCardMixer.exe",
+                "-static", 
+                "-static-libgcc", 
+                "-static-libstdc++", 
                 "-luser32",
                 "-lshell32",
                 "-lshlwapi",
@@ -47,7 +53,9 @@
                 "kind": "build",
                 "isDefault": true
             },
-            "dependsOn": ["Compile Resources"],
+            "dependsOn": [
+                "Compile Resources"
+            ],
             "problemMatcher": [],
             "options": {
                 "cwd": "${workspaceFolder}"
