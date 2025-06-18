@@ -1,4 +1,4 @@
-// RaikebVolumeCardMixer - v12 Ajuste de Handles para evitar vazamento de memória.
+// RaikebVolumeCardMixer - v12 Melhorias e ajustes de uso de strings e ícones para evitar vazamento de memória.
 // Autor: Raike
 #define WIN32_LEAN_AND_MEAN
 #define _CRT_SECURE_NO_WARNINGS
@@ -222,6 +222,16 @@ BOOL AddToStartup(bool enable)
         return TRUE;
     }
     return FALSE;
+}
+
+void ClearAudioSessions() {
+    for (auto& session : audioSessions) {
+        if (session.second.icon) {
+            DestroyIcon(session.second.icon);
+            session.second.icon = nullptr;
+        }
+    }
+    audioSessions.clear();
 }
 
 void PopulateMonitorList(HWND combo)
@@ -509,43 +519,43 @@ void CheckAudioSessionsForDevice(IMMDevice *pDevice)
 }
 std::wstring GetSessionName(IAudioSessionControl2 *pSessionControl2, DWORD pid, bool isSystemSounds)
 {
-    LPWSTR pswName = nullptr;
-    if (SUCCEEDED(pSessionControl2->GetSessionIdentifier(&pswName)))
+    LPWSTR pswNameRaw = nullptr;
+    if (FAILED(pSessionControl2->GetSessionIdentifier(&pswNameRaw)))
     {
-        std::wstring name(pswName);
-        CoTaskMemFree(pswName);
+        return L"";
+    }
+    CoTaskMemPtr<wchar_t> pswName(pswNameRaw); 
 
-        if (isSystemSounds)
-        {
-            return L"System Sounds";
-        }
+    if (isSystemSounds)
+    {
+        return L"System Sounds";
+    }
 
-        if (name.find(L"Explorer.EXE") != std::wstring::npos)
-        {
-            return L"Windows Explorer";
-        }
+    std::wstring name(pswName.get());
+    if (name.find(L"Explorer.EXE") != std::wstring::npos)
+    {
+        return L"Windows Explorer";
+    }
 
-        HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
-        if (hProcess)
-        {
-            wchar_t exeName[MAX_PATH] = {0};
-            if (GetProcessImageFileNameW(hProcess, exeName, MAX_PATH))
-            {
-                std::wstring fullPath(exeName);
-                size_t pos = fullPath.find_last_of(L"\\");
-                if (pos != std::wstring::npos)
-                {
-                    std::wstring shortName = fullPath.substr(pos + 1);
-                    CloseHandle(hProcess);
-                    return shortName;
-                }
-            }
-            CloseHandle(hProcess);
-        }
+    AutoHandle hProcess(OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid));
+    if (!hProcess)
+        return name;
+
+    wchar_t exeName[MAX_PATH] = {0};
+    if (!GetProcessImageFileNameW(hProcess, exeName, MAX_PATH))
+    {
         return name;
     }
-    return L"";
+
+    std::wstring fullPath(exeName);
+    size_t pos = fullPath.find_last_of(L"\\");
+    if (pos != std::wstring::npos)
+    {
+        return fullPath.substr(pos + 1);
+    }
+    return name;
 }
+
 void ProcessAudioSession(IAudioSessionControl2 *pSessionControl2, IAudioSessionControl *pSessionControl, const std::wstring &deviceId)
 {
     DWORD pid;
@@ -633,7 +643,8 @@ void CheckAudioSessions()
     lastCheck = now;
 
     if (firstCheck)
-    {
+    {   
+        ClearAudioSessions();
         CheckAllAudioDevices();
         firstCheck = false;
         return;
@@ -936,6 +947,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         ShowWindow(hwnd, SW_HIDE);
         return 0;
     case WM_DESTROY:
+        ClearAudioSessions();
         Shell_NotifyIconW(NIM_DELETE, &nid);
         KillTimer(hwnd, timerId);
         PostQuitMessage(0);
