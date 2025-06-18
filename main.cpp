@@ -1,4 +1,4 @@
-// RaikebVolumeCardMixer - v12 Melhorias e ajustes de uso de strings e ícones para evitar vazamento de memória.
+// RaikebVolumeCardMixer - v12 Melhorias - implementação do ScopedTimer para encapsulamento e melhor uso em relação aos temporizadores usados 
 // Autor: Raike
 #define WIN32_LEAN_AND_MEAN
 #define _CRT_SECURE_NO_WARNINGS
