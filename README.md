@@ -65,6 +65,18 @@ RaikebVolumeCardMixer is a lightweight utility for Windows that provides visual 
 4. Configure your preferences in the settings window
 5. The program will minimize to system tray and work silently
 
+## Windows Defender 🦾🤖
+
+Since this application interacts directly with the detection of process sounds, the operating system obviously activates a warning flag for the executable. So don't worry and run the program. If something is blocked, go to Windows Defender and restore it. If you still have concerns, feel free to check the code available here on git.
+
+<img src="https://github.com/user-attachments/assets/dc2b5099-91ec-43cd-b909-310bdbd6851c" alt="iconeRaikebVolumeCardMixer" style="width: 350px; height: auto;" />
+<img src="https://github.com/user-attachments/assets/f36d9bd4-89cd-464e-a60b-0aa9fdaadae6" alt="iconeRaikebVolumeCardMixer" style="width: 350px; height: auto;" />
+
+
+<img src="https://github.com/user-attachments/assets/89b68418-7414-44b3-aff1-0776f44f34c0" alt="iconeRaikebVolumeCardMixer" style="width: 450px; height: auto;" />
+<img src="https://github.com/user-attachments/assets/ed0ad348-d953-4fbf-8c7b-7db6de087bf3" alt="iconeRaikebVolumeCardMixer" style="width: 320px; height: auto;" />
+
+
 ## Connect With Me 🤝
 
 - GitHub: [github.com/Raikeb](https://github.com/Raikeb)
@@ -138,6 +150,20 @@ O RaikebVolumeCardMixer é um utilitário leve para Windows que fornece feedback
 3. Execute `RaikebVolumeCardMixer.exe`
 4. Configure suas preferências na janela de configurações
 5. O programa será minimizado para a bandeja do sistema e funcionará silenciosamente
+
+
+## Windows Defender 🦾🤖
+
+Como essa aplicação interage diretamente com a deteção do som dos processos, obviamente o sistema operacional ativa uma flag de alerta para o executável. Então fique tranquilo e execute o programa, caso algo seja bloqueado vá no Windows Defender e restaure. Caso ainda fique preocupado, sinta-se livre para averiguar o código disponibilizado aqui no git.
+
+<img src="https://github.com/user-attachments/assets/dc2b5099-91ec-43cd-b909-310bdbd6851c" alt="iconeRaikebVolumeCardMixer" style="width: 350px; height: auto;" />
+<img src="https://github.com/user-attachments/assets/f36d9bd4-89cd-464e-a60b-0aa9fdaadae6" alt="iconeRaikebVolumeCardMixer" style="width: 350px; height: auto;" />
+
+
+<img src="https://github.com/user-attachments/assets/89b68418-7414-44b3-aff1-0776f44f34c0" alt="iconeRaikebVolumeCardMixer" style="width: 450px; height: auto;" />
+<img src="https://github.com/user-attachments/assets/ed0ad348-d953-4fbf-8c7b-7db6de087bf3" alt="iconeRaikebVolumeCardMixer" style="width: 320px; height: auto;" />
+
+
 
 ## 🤝 Conecte-se Comigo
 
