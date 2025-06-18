@@ -1,4 +1,4 @@
-// RaikebVolumeCardMixer - v11 Correção do Card popup piscando ao iniciar com windows.
+// RaikebVolumeCardMixer - v12 Ajuste de Handles para evitar vazamento de memória.
 // Autor: Raike
 #define WIN32_LEAN_AND_MEAN
 #define _CRT_SECURE_NO_WARNINGS
@@ -68,12 +68,48 @@ struct AudioSessionInfo
 };
 
 struct AppConfig
-{   
+{
     bool launchOnStartup = false;
     bool startWindowed = false;
     int selectedMonitor = 0;
     int cardPosition = 0;
 };
+
+struct AutoHandle
+{
+    HANDLE handle;
+    AutoHandle(HANDLE h) : handle(h) {}
+    ~AutoHandle()
+    {
+        if (handle)
+            CloseHandle(handle);
+    }
+    operator HANDLE() const { return handle; }
+};
+
+struct AutoIcon
+{
+    HICON icon;
+    AutoIcon(HICON h) : icon(h) {}
+    ~AutoIcon()
+    {
+        if (icon)
+            DestroyIcon(icon);
+    }
+    operator HICON() const { return icon; }
+};
+
+struct CoTaskMemDeleter
+{
+    void operator()(void *p) const
+    {
+        if (p)
+            CoTaskMemFree(p);
+    }
+};
+
+template <typename T>
+using CoTaskMemPtr = std::unique_ptr<T, CoTaskMemDeleter>;
 
 // Variáveis Globais
 HINSTANCE hInst;
@@ -225,21 +261,21 @@ void PopulateMonitorList(HWND combo)
 
 HICON GetProcessIcon(DWORD pid)
 {
-    HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_VM_READ, FALSE, pid);
+    AutoHandle hProcess(OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_VM_READ, FALSE, pid));
     if (!hProcess)
         return nullptr;
 
     wchar_t exePath[MAX_PATH] = {0};
-    if (GetModuleFileNameExW(hProcess, nullptr, exePath, MAX_PATH))
+    if (!GetModuleFileNameExW(hProcess, nullptr, exePath, MAX_PATH))
     {
-        SHFILEINFOW sfi = {0};
-        if (SHGetFileInfoW(exePath, 0, &sfi, sizeof(sfi), SHGFI_ICON | SHGFI_SMALLICON))
-        {
-            CloseHandle(hProcess);
-            return sfi.hIcon;
-        }
+        return nullptr; // AutoHandle garante que hProcess será fechado
     }
-    CloseHandle(hProcess);
+
+    SHFILEINFOW sfi = {0};
+    if (SHGetFileInfoW(exePath, 0, &sfi, sizeof(sfi), SHGFI_ICON | SHGFI_SMALLICON))
+    {
+        return sfi.hIcon; // Retorna o ícone (quem chamou deve destruí-lo)
+    }
     return nullptr;
 }
 
@@ -337,7 +373,7 @@ void ShowFloatingCard(const std::wstring &processName, int volume, HICON hIcon =
         }
 
         ShowWindow(hwndCard, SW_SHOWNOACTIVATE);
-        SetTimer(hwndCard, 1, 1500, nullptr); 
+        SetTimer(hwndCard, 1, 1500, nullptr);
     }
 }
 
@@ -552,13 +588,15 @@ void ProcessAudioSession(IAudioSessionControl2 *pSessionControl2, IAudioSessionC
                 it->second.hasChanged = true;
 
                 HICON appIcon = GetProcessIcon(pid);
-                if (it->second.icon)
+                if (it != audioSessions.end())
                 {
-                    DestroyIcon(it->second.icon);
+                    if (it->second.icon)
+                    {
+                        DestroyIcon(it->second.icon); // Libera o ícone antigo
+                    }
+                    it->second.icon = appIcon; // Atribui o novo ícone
                 }
-                it->second.icon = appIcon;
 
-                
                 if (!firstCheck)
                 {
                     ShowFloatingCard(sessionName, static_cast<int>(round(volume * 100)), appIcon);
@@ -573,8 +611,7 @@ void ProcessAudioSession(IAudioSessionControl2 *pSessionControl2, IAudioSessionC
         {
             HICON appIcon = GetProcessIcon(pid);
             audioSessions[sessionKey] = {pid, sessionName, volume, isSystemSounds, appIcon, true, deviceId};
-            
-           
+
             if (!firstCheck && volume < 0.99f)
             {
                 ShowFloatingCard(sessionName, static_cast<int>(round(volume * 100)), appIcon);
@@ -601,7 +638,7 @@ void CheckAudioSessions()
         firstCheck = false;
         return;
     }
-    
+
     // Verificação de sessões ativas em todos os dispositivos
     std::set<std::wstring> activeSessions;
     IMMDeviceEnumerator *pEnumerator = nullptr;
