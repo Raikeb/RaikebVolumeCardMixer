@@ -107,9 +107,53 @@ struct CoTaskMemDeleter
             CoTaskMemFree(p);
     }
 };
-
 template <typename T>
 using CoTaskMemPtr = std::unique_ptr<T, CoTaskMemDeleter>;
+
+struct ScopedTimer
+{
+    HWND hwnd = nullptr;
+    UINT_PTR id = 0;
+
+    ScopedTimer(HWND h = nullptr, UINT_PTR i = 0) : hwnd(h), id(i) {}
+
+    ~ScopedTimer() { reset(); }
+
+    ScopedTimer(ScopedTimer &&other) noexcept
+    {
+        reset();
+        hwnd = other.hwnd;
+        id = other.id;
+        other.hwnd = nullptr;
+        other.id = 0;
+    }
+
+    ScopedTimer &operator=(ScopedTimer &&other) noexcept
+    {
+        if (this != &other)
+        {
+            reset();
+            hwnd = other.hwnd;
+            id = other.id;
+            other.hwnd = nullptr;
+            other.id = 0;
+        }
+        return *this;
+    }
+
+    void reset(HWND newHwnd = nullptr, UINT_PTR newId = 0)
+    {
+        if (hwnd && id)
+        {
+            KillTimer(hwnd, id);
+        }
+        hwnd = newHwnd;
+        id = newId;
+    }
+
+    ScopedTimer(const ScopedTimer &) = delete;
+    ScopedTimer &operator=(const ScopedTimer &) = delete;
+};
 
 // Variáveis Globais
 HINSTANCE hInst;
@@ -119,7 +163,7 @@ HWND hCheckStartup, hCheckWindowed, hComboMonitor;
 std::vector<std::wstring> monitorNames;
 AppConfig config;
 std::map<std::wstring, AudioSessionInfo> audioSessions;
-UINT_PTR timerId = 0;
+ScopedTimer mainTimer(nullptr, 0);
 std::wofstream logFile;
 bool firstCheck = true;
 
@@ -224,9 +268,12 @@ BOOL AddToStartup(bool enable)
     return FALSE;
 }
 
-void ClearAudioSessions() {
-    for (auto& session : audioSessions) {
-        if (session.second.icon) {
+void ClearAudioSessions()
+{
+    for (auto &session : audioSessions)
+    {
+        if (session.second.icon)
+        {
             DestroyIcon(session.second.icon);
             session.second.icon = nullptr;
         }
@@ -524,7 +571,7 @@ std::wstring GetSessionName(IAudioSessionControl2 *pSessionControl2, DWORD pid, 
     {
         return L"";
     }
-    CoTaskMemPtr<wchar_t> pswName(pswNameRaw); 
+    CoTaskMemPtr<wchar_t> pswName(pswNameRaw);
 
     if (isSystemSounds)
     {
@@ -643,7 +690,7 @@ void CheckAudioSessions()
     lastCheck = now;
 
     if (firstCheck)
-    {   
+    {
         ClearAudioSessions();
         CheckAllAudioDevices();
         firstCheck = false;
@@ -807,7 +854,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
         SendMessageW(hComboPosition, CB_SETCURSEL, config.cardPosition, 0);
 
-        timerId = SetTimer(hwnd, TIMER_ID, 100, NULL);
+        mainTimer = ScopedTimer(hwnd, SetTimer(hwnd, TIMER_ID, 100, NULL));
 
         HFONT hFontMono = CreateFontW(12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
                                       DEFAULT_CHARSET, OUT_OUTLINE_PRECIS, CLIP_DEFAULT_PRECIS,
@@ -877,7 +924,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             break;
         case ID_TRAY_EXIT:
             Shell_NotifyIconW(NIM_DELETE, &nid);
-            KillTimer(hwnd, timerId);
+            mainTimer.reset();
             PostQuitMessage(0);
             break;
         case ID_CHECK_STARTUP:
@@ -949,7 +996,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_DESTROY:
         ClearAudioSessions();
         Shell_NotifyIconW(NIM_DELETE, &nid);
-        KillTimer(hwnd, timerId);
+        mainTimer.reset();
         PostQuitMessage(0);
         break;
     }
