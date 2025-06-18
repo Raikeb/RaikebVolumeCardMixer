@@ -1,4 +1,4 @@
-// RaikebVolumeCardMixer - v12 Melhorias - implementação do ScopedTimer para encapsulamento e melhor uso em relação aos temporizadores usados 
+// RaikebVolumeCardMixer - v13 Melhorias - implementações de otimizações na checagem de sessões de audio e uso de cpu reduzido
 // Autor: Raike
 #define WIN32_LEAN_AND_MEAN
 #define _CRT_SECURE_NO_WARNINGS
@@ -56,13 +56,52 @@ void ProcessAudioSession(IAudioSessionControl2 *pSessionControl2,
 std::wstring GetSessionName(IAudioSessionControl2 *pSessionControl2, DWORD pid, bool isSystemSounds);
 
 // Estruturas
+struct AutoIcon
+{
+    HICON icon;
+
+    explicit AutoIcon(HICON h = nullptr) : icon(h) {}
+
+    ~AutoIcon() { reset(); }
+
+    AutoIcon(AutoIcon &&other) noexcept : icon(other.icon)
+    {
+        other.icon = nullptr;
+    }
+
+    AutoIcon &operator=(AutoIcon &&other) noexcept
+    {
+        if (this != &other)
+        {
+            reset();
+            icon = other.icon;
+            other.icon = nullptr;
+        }
+        return *this;
+    }
+
+    void reset(HICON newIcon = nullptr)
+    {
+        if (icon)
+        {
+            DestroyIcon(icon);
+        }
+        icon = newIcon;
+    }
+
+    operator HICON() const { return icon; }
+
+    AutoIcon(const AutoIcon &) = delete;
+    AutoIcon &operator=(const AutoIcon &) = delete;
+};
+
 struct AudioSessionInfo
 {
     DWORD pid;
     std::wstring name;
     float volume;
     bool isSystemSounds;
-    HICON icon;
+    AutoIcon icon;
     bool hasChanged;
     std::wstring deviceId;
 };
@@ -85,18 +124,6 @@ struct AutoHandle
             CloseHandle(handle);
     }
     operator HANDLE() const { return handle; }
-};
-
-struct AutoIcon
-{
-    HICON icon;
-    AutoIcon(HICON h) : icon(h) {}
-    ~AutoIcon()
-    {
-        if (icon)
-            DestroyIcon(icon);
-    }
-    operator HICON() const { return icon; }
 };
 
 struct CoTaskMemDeleter
@@ -270,14 +297,6 @@ BOOL AddToStartup(bool enable)
 
 void ClearAudioSessions()
 {
-    for (auto &session : audioSessions)
-    {
-        if (session.second.icon)
-        {
-            DestroyIcon(session.second.icon);
-            session.second.icon = nullptr;
-        }
-    }
     audioSessions.clear();
 }
 
@@ -336,7 +355,7 @@ HICON GetProcessIcon(DWORD pid)
     return nullptr;
 }
 
-void ShowFloatingCard(const std::wstring &processName, int volume, HICON hIcon = nullptr)
+void ShowFloatingCard(const std::wstring &processName, int volume, const AutoIcon &icon = AutoIcon(nullptr))
 {
     static std::wstring lastProcessName;
     static int lastVolume = -1;
@@ -347,8 +366,6 @@ void ShowFloatingCard(const std::wstring &processName, int volume, HICON hIcon =
 
     if (processName == lastProcessName && volume == lastVolume && elapsed < 1000)
     {
-        if (hIcon)
-            DestroyIcon(hIcon);
         return;
     }
 
@@ -423,10 +440,10 @@ void ShowFloatingCard(const std::wstring &processName, int volume, HICON hIcon =
         SetWindowTextW(hwndCard, text.c_str());
         SetLayeredWindowAttributes(hwndCard, 0, 220, LWA_ALPHA);
 
-        if (hIcon)
+        if (icon)
         {
-            SendMessageW(hwndCard, WM_SETICON, ICON_SMALL, (LPARAM)hIcon);
-            SendMessageW(hwndCard, WM_SETICON, ICON_BIG, (LPARAM)hIcon);
+            SendMessageW(hwndCard, WM_SETICON, ICON_SMALL, (LPARAM)(HICON)icon);
+            SendMessageW(hwndCard, WM_SETICON, ICON_BIG, (LPARAM)(HICON)icon);
         }
 
         ShowWindow(hwndCard, SW_SHOWNOACTIVATE);
@@ -644,19 +661,15 @@ void ProcessAudioSession(IAudioSessionControl2 *pSessionControl2, IAudioSessionC
                 it->second.volume = volume;
                 it->second.hasChanged = true;
 
-                HICON appIcon = GetProcessIcon(pid);
+                AutoIcon appIcon(GetProcessIcon(pid));
                 if (it != audioSessions.end())
                 {
-                    if (it->second.icon)
-                    {
-                        DestroyIcon(it->second.icon); // Libera o ícone antigo
-                    }
-                    it->second.icon = appIcon; // Atribui o novo ícone
+                    it->second.icon = std::move(appIcon);
                 }
 
                 if (!firstCheck)
                 {
-                    ShowFloatingCard(sessionName, static_cast<int>(round(volume * 100)), appIcon);
+                    ShowFloatingCard(sessionName, static_cast<int>(round(volume * 100)), it->second.icon);
                 }
             }
             else
@@ -666,12 +679,12 @@ void ProcessAudioSession(IAudioSessionControl2 *pSessionControl2, IAudioSessionC
         }
         else
         {
-            HICON appIcon = GetProcessIcon(pid);
-            audioSessions[sessionKey] = {pid, sessionName, volume, isSystemSounds, appIcon, true, deviceId};
+            AutoIcon appIcon(GetProcessIcon(pid));
+            audioSessions[sessionKey] = {pid, sessionName, volume, isSystemSounds, std::move(appIcon), true, deviceId};
 
             if (!firstCheck && volume < 0.99f)
             {
-                ShowFloatingCard(sessionName, static_cast<int>(round(volume * 100)), appIcon);
+                ShowFloatingCard(sessionName, static_cast<int>(round(volume * 100)), audioSessions[sessionKey].icon);
             }
         }
     }
@@ -1069,10 +1082,20 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow)
     ShowWindow(hwndMain, config.startWindowed ? SW_HIDE : SW_SHOW);
 
     MSG msg;
-    while (GetMessageW(&msg, NULL, 0, 0))
+    while (true)
     {
-        TranslateMessage(&msg);
-        DispatchMessageW(&msg);
+        if (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE))
+        {
+            if (msg.message == WM_QUIT)
+                break;
+                
+            TranslateMessage(&msg);
+            DispatchMessageW(&msg);
+        }
+        else
+        {
+            Sleep(1);
+        }
     }
 
     CoUninitialize();
